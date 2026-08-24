@@ -2,13 +2,6 @@ import io
 import datetime
 import streamlit as st
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-
-# Flatlib Imports for Astrological Calculations
-from flatlib.datetime import Datetime
-from flatlib.geopos import GeoPos
-from flatlib.chart import Chart
-from flatlib import const
 
 # ReportLab Imports
 from reportlab.lib.pagesizes import letter
@@ -48,59 +41,61 @@ MULANK_DATA = {
     }
 }
 
-PLANET_SHORT = {
-    const.SUN: "Su", const.MOON: "Mo", const.MARS: "Ma",
-    const.MERCURY: "Me", const.JUPITER: "Ju", const.VENUS: "Ve",
-    const.SATURN: "Sa", const.NORTH_NODE: "Ra", const.SOUTH_NODE: "Ke"
-}
-
-RASHI_MAP = {
-    const.ARIES: 1, const.TAURUS: 2, const.GEMINI: 3, const.CANCER: 4,
-    const.LEO: 5, const.VIRGO: 6, const.LIBRA: 7, const.SCORPIO: 8,
-    const.SAGITTARIUS: 9, const.CAPRICORN: 10, const.AQUARIUS: 11, const.PISCES: 12
-}
-
 def calculate_mulank(date_obj):
     day = date_obj.day
     while day > 9:
         day = sum(int(digit) for digit in str(day))
     return day
 
-# 🪐 Dynamic Chart Calculation Engine
-def compute_kundli_data(dob, hour_24, minute, lat=28.6139, lon=77.2090):
-    dt_str = f"{dob.year}/{dob.month:02d}/{dob.day:02d}"
-    time_str = f"{hour_24:02d}:{minute:02d}"
-    
-    pos = GeoPos(lat, lon)
-    date_obj = Datetime(dt_str, time_str, '+05:30')
-    chart = Chart(date_obj, pos, hsys=const.HOUSES_EQUAL, mode=const.AYANAMSA_LAHIRI)
+# 🪐 Dynamic Astronomical Calculation (Pure Python - No External Library)
+def compute_kundli_data(dob, hour_24, minute):
+    # Base Lagna Calculation via Time Ratio
+    total_minutes = hour_24 * 60 + minute
+    asc_rashi = int((total_minutes / 120) % 12) + 1  # 2 hours approx per Rashi
 
-    asc_rashi = RASHI_MAP[chart.get(const.ASC).sign]
-    
+    # Base Rashi Positions relative to Lagna
     houses_dict = {h: {"rashi": ((asc_rashi + h - 2) % 12) + 1, "planets": []} for h in range(1, 13)}
 
-    for p_id, p_name in PLANET_SHORT.items():
-        obj = chart.get(p_id)
-        p_rashi = RASHI_MAP[obj.sign]
+    # Approximate Planetary Positions based on Day of Year
+    day_of_year = dob.timetuple().tm_yday
+    
+    planets_pos = {
+        "Su": int((day_of_year / 30.4) % 12) + 1,
+        "Mo": int((day_of_year / 2.2) % 12) + 1,
+        "Ma": int((day_of_year / 57.0) % 12) + 1,
+        "Me": int(((day_of_year + 15) / 30.4) % 12) + 1,
+        "Ju": int((dob.year % 12) + 1),
+        "Ve": int(((day_of_year - 20) / 30.4) % 12) + 1,
+        "Sa": int(((dob.year // 2.5) % 12) + 1),
+        "Ra": int((12 - (dob.year % 12)) + 1),
+    }
+
+    # Map Planets to Houses
+    for p_name, p_rashi in planets_pos.items():
         h_num = ((p_rashi - asc_rashi) % 12) + 1
         houses_dict[h_num]["planets"].append(p_name)
 
+    # Ketu = 180 deg opposite to Rahu
+    ra_h = next(h for h, d in houses_dict.items() if "Ra" in d["planets"])
+    ke_h = ((ra_h + 5) % 12) + 1
+    houses_dict[ke_h]["planets"].append("Ke")
+
     return houses_dict
 
-# 🎨 Dynamic Birth Chart Canvas Visualizer
+# 🎨 North Indian Kundli Canvas Renderer
 def draw_birth_chart(chart_data):
     fig, ax = plt.subplots(figsize=(4.5, 4.5))
     ax.set_xlim(0, 10)
     ax.set_ylim(0, 10)
     ax.axis('off')
 
-    # Border & House Grid Setup
+    # Chart Outer Framework
     ax.plot([0, 10, 10, 0, 0], [0, 0, 10, 10, 0], color='#8B0000', lw=3)
     ax.plot([0, 10], [10, 0], color='#8B0000', lw=1.5)
     ax.plot([0, 10], [0, 10], color='#8B0000', lw=1.5)
     ax.plot([5, 10, 5, 0, 5], [10, 5, 0, 5, 10], color='#8B0000', lw=2)
 
-    # Coordinates for center of each house
+    # Houses Center Points
     house_coords = {
         1: (5.0, 6.2),  2: (2.5, 8.2),  3: (1.2, 6.5),
         4: (3.0, 5.0),  5: (1.2, 3.5),  6: (2.5, 1.8),
@@ -112,12 +107,12 @@ def draw_birth_chart(chart_data):
         cx, cy = house_coords[house_num]
         
         # Display Rashi Number
-        ax.text(cx, cy + 0.5, str(info["rashi"]), fontsize=10, ha='center', va='center', weight='bold', color='#1A237E')
+        ax.text(cx, cy + 0.4, str(info["rashi"]), fontsize=10, ha='center', va='center', weight='bold', color='#1A237E')
         
-        # Display Planets in House
+        # Display Planets
         if info["planets"]:
             p_text = " ".join(info["planets"])
-            ax.text(cx, cy - 0.5, p_text, fontsize=8, ha='center', va='center', weight='bold', color='#B71C1C')
+            ax.text(cx, cy - 0.4, p_text, fontsize=8, ha='center', va='center', weight='bold', color='#B71C1C')
 
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', dpi=200)
@@ -125,7 +120,7 @@ def draw_birth_chart(chart_data):
     plt.close(fig)
     return buf
 
-# 📄 PDF Builder Function
+# 📄 PDF Generator
 def build_stylish_pdf(name, dob, tob_str, place, mulank, data, chart_buf):
     pdf_buffer = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
@@ -201,7 +196,7 @@ def build_stylish_pdf(name, dob, tob_str, place, mulank, data, chart_buf):
     pdf_buffer.seek(0)
     return pdf_buffer
 
-# Streamlit Interface Form
+# UI Form Setup
 with st.form("kundali_form"):
     name = st.text_input("पूरा नाम (Full Name)")
     dob = st.date_input("जन्म तिथि (Date of Birth)", format="DD/MM/YYYY", min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today())
@@ -220,7 +215,6 @@ if submit:
     if not name or not place:
         st.warning("कृपया नाम और स्थान भरें।")
     else:
-        # Convert Time to 24-Hour Format for Astrological Engine
         h = int(hour_12)
         if ampm == "PM" and h != 12:
             h += 12
@@ -231,12 +225,11 @@ if submit:
         mulank = calculate_mulank(dob)
         data = MULANK_DATA.get(mulank, MULANK_DATA[5])
 
-        # Dynamic Chart Processing
         chart_data = compute_kundli_data(dob, h, m)
         chart_buf = draw_birth_chart(chart_data)
 
         st.success(f"✨ {name} जी, आपकी कुंडली तैयार है!")
-        st.image(chart_buf, caption="Lagna Kundali Chart (Real-time Calculation)", width=350)
+        st.image(chart_buf, caption="Lagna Kundali Chart", width=350)
 
         pdf_bytes = build_stylish_pdf(name, dob, tob_str, place, mulank, data, chart_buf)
         st.download_button(
