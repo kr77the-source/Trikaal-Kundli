@@ -1,199 +1,211 @@
 import streamlit as st
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-import io
 import datetime
+import io
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+
+# ReportLab Imports
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
 st.set_page_config(page_title="Trikaal Kundli - त्रिकाल कुंडली", page_icon="🕉️")
 
 st.title("🕉️ Trikaal Kundli (त्रिकाल कुंडली)")
 st.caption("मूल्यांक विश्लेषण एवं संपूर्ण रिपोर्ट")
 
-# 1 से 9 तक के मूल्यांक का पूरा डेटाबेस
+# 1 से 9 तक का डेटा (अंग्रेजी/Hinglish टेक्स्ट का प्रयोग PDF फ़ॉन्ट इश्यू से बचने के लिए)
 MULANK_DATA = {
     1: {
-        "lord": "सूर्य", "dates": "1, 10, 19, 28", "rashi": "सिंह",
-        "days": "रविवार, सोमवार", "color": "लाल, नारंगी, सुनहरा", "gem": "माणिक्य (Ruby)",
-        "number": "1, 10, 19, 28", "metal": "तांबा, सोना", "mantra": "ॐ घृणिः सूर्याय नमः",
-        "strengths": "नेतृत्व क्षमता, आत्मविश्वासी, स्वाभिमानी",
-        "weakness": "अहंकार, गुस्सा, जल्दबाजी",
-        "remedy": "सूर्य देव को जल चढ़ाएं, पिता का सम्मान करें।"
+        "lord": "Sun (Surya)", "dates": "1, 10, 19, 28", "rashi": "Leo (Simha)",
+        "days": "Sunday, Monday", "color": "Red, Orange, Gold", "gem": "Ruby (Manikya)",
+        "number": "1, 10, 19, 28", "metal": "Copper, Gold", "mantra": "Om Ghrini Suryaya Namah",
+        "strengths": "Leadership, Confident, Self-respecting",
+        "weakness": "Ego, Anger, Impatience",
+        "remedy": "Offer water to Sun Lord, respect father."
     },
     2: {
-        "lord": "चन्द्रमा", "dates": "2, 11, 20, 29", "rashi": "कर्क",
-        "days": "सोमवार, शुक्रवार", "color": "सफेद, क्रीम, सिल्वर", "gem": "मोती (Pearl)",
-        "number": "2, 11, 20, 29", "metal": "चाँदी", "mantra": "ॐ सोम सोमाय नमः",
-        "strengths": "संवेदनशील, शांत, कल्पनाशील, सहयोगी",
-        "weakness": "भावुक होना, ओवरथिंकिंग, मूड स्विंग्स",
-        "remedy": "शिवजी की पूजा करें, सोमवार को दूध/पानी दान करें।"
-    },
-    3: {
-        "lord": "बृहस्पति (गुरु)", "dates": "3, 12, 21, 30", "rashi": "धनु, मीन",
-        "days": "गुरुवार", "color": "पीला, केसरिया", "gem": "पुखराज (Yellow Sapphire)",
-        "number": "3, 12, 21, 30", "metal": "सोना, पीतल", "mantra": "ॐ ब्रं बृहस्पतये नमः",
-        "strengths": "ज्ञानी, सलाहकार, अनुशासनप्रिय",
-        "weakness": "अत्यधिक आत्मविश्वास, फिजूलखर्ची",
-        "remedy": "केले के पेड़ की पूजा करें, बड़ों का आशीर्वाद लें।"
-    },
-    4: {
-        "lord": "राहु", "dates": "4, 13, 22, 31", "rashi": "कन्या (प्रतीकात्मक)",
-        "days": "रविवार, शनिवार", "color": "नीला, ग्रे", "gem": "गोमेद (Gomed)",
-        "number": "4, 13, 22, 31", "metal": "अष्टधातु", "mantra": "ॐ रां राहवे नमः",
-        "strengths": "रचनात्मक, व्यावहारिक, क्रांतिकारी सोच",
-        "weakness": "अचानक गुस्सा, भ्रमित रहना",
-        "remedy": "सफाई कर्मचारियों की मदद करें, पक्षियों को बाजरा दें।"
+        "lord": "Moon (Chandra)", "dates": "2, 11, 20, 29", "rashi": "Cancer (Kark)",
+        "days": "Monday, Friday", "color": "White, Cream, Silver", "gem": "Pearl (Moti)",
+        "number": "2, 11, 20, 29", "metal": "Silver", "mantra": "Om Som Somaya Namah",
+        "strengths": "Sensitive, Calm, Imaginative, Helpful",
+        "weakness": "Over-emotional, Overthinking, Mood Swings",
+        "remedy": "Worship Lord Shiva, donate milk/water on Mondays."
     },
     5: {
-        "lord": "बुध", "dates": "5, 14, 23", "rashi": "मिथुन, कन्या",
-        "days": "बुधवार, शुक्रवार", "color": "हरा, हल्का पीला", "gem": "पन्ना (Emerald)",
-        "number": "5, 14, 23", "metal": "कांसा, सोना", "mantra": "ॐ ब्रां ब्रीं ब्रौं सः बुधाय नमः",
-        "strengths": "बुद्धिमान, कम्यूनिकेशन, बिजनेस माइंडेड",
-        "weakness": "चंचलता, जल्दी बोर होना, अधीरता",
-        "remedy": "गाय को हरी घास खिलाएं, गणेश जी को दूर्वा चढ़ाएं।"
-    },
-    6: {
-        "lord": "शुक्र", "dates": "6, 15, 24", "rashi": "वृष, तुला",
-        "days": "शुक्रवार", "color": "सफेद, गुलाबी, चमकीला", "gem": "हीरा (Diamond), ओपल",
-        "number": "6, 15, 24", "metal": "चाँदी, प्लैटिनम", "mantra": "ॐ शुं शुक्राय नमः",
-        "strengths": "कलात्मक, आकर्षक, शांतिप्रिय",
-        "weakness": "आरामपसंदीदा, अत्यधिक दिखावा",
-        "remedy": "लक्ष्मी माता की पूजा करें, इत्र का प्रयोग करें।"
-    },
-    7: {
-        "lord": "केतु", "dates": "7, 16, 25", "rashi": "मीन (प्रतीकात्मक)",
-        "days": "रविवार, गुरुवार", "color": "मल्टीकलर, हल्का हरा", "gem": "लहसुनिया (Cat's Eye)",
-        "number": "7, 16, 25", "metal": "पंचधातु", "mantra": "ॐ कें केतवे नमः",
-        "strengths": "शोधकर्ता, आध्यात्मिक, विश्लेषणात्मक",
-        "weakness": "अकेलापन, मन में चिंता",
-        "remedy": "कुत्ते को रोटी खिलाएं, गणेश जी की आराधना करें।"
-    },
-    8: {
-        "lord": "शनि", "dates": "8, 17, 26", "rashi": "मकर, कुंभ",
-        "days": "शनिवार", "color": "काला, गहरा नीला", "gem": "नीलम (Blue Sapphire)",
-        "number": "8, 17, 26", "metal": "लोहा", "mantra": "ॐ शं शनैश्चराय नमः",
-        "strengths": "मेहनती, धैर्यवान, न्यायप्रिय",
-        "weakness": "धीमी प्रगति, निराशावादी सोच",
-        "remedy": "शनिवार को पीपल के पेड़ तले दीपक जलाएं, गरीबों की सेवा करें।"
-    },
-    9: {
-        "lord": "मंगल", "dates": "9, 18, 27", "rashi": "मेष, वृश्चिक",
-        "days": "मंगलवार", "color": "लाल, गहरा लाल", "gem": "मूंगा (Coral)",
-        "number": "9, 18, 27", "metal": "तांबा", "mantra": "ॐ अं अंगारकाय नमः",
-        "strengths": "साहसी, ऊर्जावान, निडर",
-        "weakness": "अत्यधिक गुस्सा, आक्रामकता",
-        "remedy": "हनुमान जी की पूजा करें, हनुमान चालीसा का पाठ करें।"
+        "lord": "Mercury (Budh)", "dates": "5, 14, 23", "rashi": "Gemini, Virgo",
+        "days": "Wednesday, Friday", "color": "Green, Light Yellow", "gem": "Emerald (Panna)",
+        "number": "5, 14, 23", "metal": "Bronze, Gold", "mantra": "Om Bram Breem Broum Sah Budhaya Namah",
+        "strengths": "Intelligent, Great Communication, Business Minded",
+        "weakness": "Restlessness, Gets bored easily, Impatient",
+        "remedy": "Feed green grass to cows, offer Durva to Lord Ganesha."
     }
 }
 
-# मूल्यांक निकालने का फंक्शन
 def calculate_mulank(date_obj):
     day = date_obj.day
     while day > 9:
         day = sum(int(digit) for digit in str(day))
     return day
 
-# PDF जनरेट करने का फंक्शन
-def generate_pdf(name, dob, tob_str, place, mulank, data):
-    buffer = io.BytesIO()
-    p = canvas.Canvas(buffer, pagesize=letter)
+# 🎨 बर्थ चार्ट (Lagna Chart Image) बनाने का फंक्शन
+def draw_birth_chart():
+    fig, ax = plt.subplots(figsize=(4, 4))
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 10)
+    ax.axis('off')
     
-    # PDF Header
-    p.setFont("Helvetica-Bold", 18)
-    p.drawString(180, 750, "TRIKAAL KUNDLI REPORT")
-    p.line(50, 735, 550, 735)
-    
-    # User Details
-    p.setFont("Helvetica-Bold", 12)
-    p.drawString(50, 700, f"Name: {name}")
-    p.drawString(50, 680, f"Date of Birth: {dob.strftime('%d/%m/%Y')}")
-    p.drawString(50, 660, f"Time of Birth: {tob_str}")
-    p.drawString(50, 640, f"Place of Birth: {place}")
-    p.drawString(50, 620, f"Mulank (Lucky Number): {mulank}")
-    
-    p.line(50, 600, 550, 600)
-    
-    # Mulank Details
-    p.setFont("Helvetica-Bold", 14)
-    p.drawString(50, 570, f"Mulank {mulank} Analysis (Ruler: {data['lord']}):")
-    
-    p.setFont("Helvetica", 11)
-    p.drawString(70, 540, f"- Lucky Dates: {data['dates']}")
-    p.drawString(70, 520, f"- Rashi: {data['rashi']}")
-    p.drawString(70, 500, f"- Lucky Days: {data['days']}")
-    p.drawString(70, 480, f"- Lucky Colors: {data['color']}")
-    p.drawString(70, 460, f"- Gemstone: {data['gem']}")
-    p.drawString(70, 440, f"- Strengths: {data['strengths']}")
-    p.drawString(70, 420, f"- Weakness: {data['weakness']}")
-    p.drawString(70, 400, f"- Remedy: {data['remedy']}")
-    
-    p.setFont("Helvetica-Oblique", 9)
-    p.drawString(200, 50, "Generated by Trikaal Kundli App")
-    
-    p.showPage()
-    p.save()
-    buffer.seek(0)
-    return buffer
+    # Outer Square
+    ax.plot([0, 10, 10, 0, 0], [0, 0, 10, 10, 0], color='#8B0000', lw=3)
+    # Diagonals
+    ax.plot([0, 10], [10, 0], color='#8B0000', lw=1.5)
+    ax.plot([0, 10], [0, 10], color='#8B0000', lw=1.5)
+    # Inner Diamond
+    ax.plot([5, 10, 5, 0, 5], [10, 5, 0, 5, 10], color='#8B0000', lw=2)
 
-# फॉर्म डिज़ाइन
-with st.form("kundali_form"):
-    name = st.text_input("पूरा नाम (Full Name)")
+    # House Labels (North Indian Style)
+    ax.text(5, 7.5, "1 (Lagna)", fontsize=10, ha='center', weight='bold', color='#1A237E')
+    ax.text(2.5, 8.8, "2", fontsize=9, ha='center')
+    ax.text(1.2, 7.5, "3", fontsize=9, ha='center')
+    ax.text(2.5, 5, "4", fontsize=9, ha='center')
+    ax.text(1.2, 2.5, "5", fontsize=9, ha='center')
+    ax.text(2.5, 1.2, "6", fontsize=9, ha='center')
+    ax.text(5, 2.5, "7", fontsize=9, ha='center')
+    ax.text(7.5, 1.2, "8", fontsize=9, ha='center')
+    ax.text(8.8, 2.5, "9", fontsize=9, ha='center')
+    ax.text(7.5, 5, "10", fontsize=9, ha='center')
+    ax.text(8.8, 7.5, "11", fontsize=9, ha='center')
+    ax.text(7.5, 8.8, "12", fontsize=9, ha='center')
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', dpi=200)
+    buf.seek(0)
+    plt.close(fig)
+    return buf
+
+# 📄 प्रीमियम PDF डिज़ाइन तैयार करने का फंक्शन
+def build_stylish_pdf(name, dob, tob_str, place, mulank, data, chart_buf):
+    pdf_buffer = io.BytesIO()
+    doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+    story = []
+
+    styles = getSampleStyleSheet()
     
-    dob = st.date_input(
-        "जन्म तिथि (Date of Birth)", 
-        format="DD/MM/YYYY",
-        min_value=datetime.date(1900, 1, 1),
-        max_value=datetime.date.today()
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=22,
+        textColor=colors.HexColor("#1A237E"),
+        alignment=1,
+        spaceAfter=15
     )
     
+    label_style = ParagraphStyle('Label', fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor("#333333"))
+    value_style = ParagraphStyle('Value', fontName='Helvetica', fontSize=10, textColor=colors.HexColor("#1A237E"))
+
+    # Title
+    story.append(Paragraph("TRIKAAL KUNDLI REPORT", title_style))
+    story.append(Spacer(1, 10))
+
+    # User Details & Chart Section
+    user_info = [
+        [Paragraph("<b>Name:</b>", label_style), Paragraph(name, value_style)],
+        [Paragraph("<b>Date of Birth:</b>", label_style), Paragraph(dob.strftime('%d/%m/%Y'), value_style)],
+        [Paragraph("<b>Time of Birth:</b>", label_style), Paragraph(tob_str, value_style)],
+        [Paragraph("<b>Place of Birth:</b>", label_style), Paragraph(place, value_style)],
+        [Paragraph("<b>Mulank:</b>", label_style), Paragraph(str(mulank), value_style)],
+    ]
+    
+    info_table = Table(user_info, colWidths=[100, 150])
+    info_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#F5F5F5")),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor("#E0E0E0")),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#1A237E")),
+        ('PADDING', (0,0), (-1,-1), 6),
+    ]))
+
+    chart_img = RLImage(chart_buf, width=170, height=170)
+
+    # Combine Info & Chart side by side
+    top_grid = Table([[info_table, chart_img]], colWidths=[270, 270])
+    top_grid.setStyle(TableStyle([
+        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    
+    story.append(top_grid)
+    story.append(Spacer(1, 20))
+
+    # Mulank Details Table Header
+    story.append(Paragraph(f"<b>MULANK {mulank} DETAILS (Ruler: {data['lord']})</b>", ParagraphStyle('Sub', fontName='Helvetica-Bold', fontSize=14, textColor=colors.HexColor("#8B0000"), alignment=1)))
+    story.append(Spacer(1, 10))
+
+    # Table like Image
+    table_data = [
+        [Paragraph("<b>Attribute</b>", label_style), Paragraph("<b>Details</b>", label_style)],
+        [Paragraph("Lucky Dates", label_style), Paragraph(data["dates"], value_style)],
+        [Paragraph("Ruling Planet", label_style), Paragraph(data["lord"], value_style)],
+        [Paragraph("Zodiac (Rashi)", label_style), Paragraph(data["rashi"], value_style)],
+        [Paragraph("Lucky Days", label_style), Paragraph(data["days"], value_style)],
+        [Paragraph("Lucky Colors", label_style), Paragraph(data["color"], value_style)],
+        [Paragraph("Gemstone", label_style), Paragraph(data["gem"], value_style)],
+        [Paragraph("Lucky Numbers", label_style), Paragraph(data["number"], value_style)],
+        [Paragraph("Metal", label_style), Paragraph(data["metal"], value_style)],
+        [Paragraph("Mantra", label_style), Paragraph(data["mantra"], value_style)],
+        [Paragraph("Strengths", label_style), Paragraph(data["strengths"], value_style)],
+        [Paragraph("Weakness", label_style), Paragraph(data["weakness"], value_style)],
+        [Paragraph("Remedy", label_style), Paragraph(data["remedy"], value_style)],
+    ]
+
+    mulank_table = Table(table_data, colWidths=[150, 390])
+    mulank_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1A237E")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#B0BEC5")),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8F9FA")]),
+        ('PADDING', (0,0), (-1,-1), 6),
+    ]))
+
+    story.append(mulank_table)
+    
+    doc.build(story)
+    pdf_buffer.seek(0)
+    return pdf_buffer
+
+# UI Inputs
+with st.form("kundali_form"):
+    name = st.text_input("पूरा नाम (Full Name)")
+    dob = st.date_input("जन्म तिथि (Date of Birth)", format="DD/MM/YYYY", min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today())
+    
     st.write("**जन्म समय (Time of Birth)**")
-    t_col1, t_col2, t_col3 = st.columns(3)
-    with t_col1:
-        hour = st.selectbox("Hour", [f"{i:02d}" for i in range(1, 13)])
-    with t_col2:
-        minute = st.selectbox("Minute", [f"{i:02d}" for i in range(0, 60)])
-    with t_col3:
-        ampm = st.selectbox("AM/PM", ["AM", "PM"])
-        
+    t1, t2, t3 = st.columns(3)
+    with t1: hour = st.selectbox("Hour", [f"{i:02d}" for i in range(1, 13)])
+    with t2: minute = st.selectbox("Minute", [f"{i:02d}" for i in range(0, 60)])
+    with t3: ampm = st.selectbox("AM/PM", ["AM", "PM"])
     tob_str = f"{hour}:{minute} {ampm}"
     
     place = st.text_input("जन्म स्थान (Birth Place)")
     submit = st.form_submit_button("🔮 विश्लेषण देखें")
 
-# आउटपुट एवं PDF डाउनलोड एक्शन
 if submit:
     if not name or not place:
-        st.warning("कृपया अपना नाम और जन्म स्थान दर्ज करें।")
+        st.warning("कृपया नाम और स्थान भरें।")
     else:
         mulank = calculate_mulank(dob)
-        data = MULANK_DATA.get(mulank, MULANK_DATA[1])
+        data = MULANK_DATA.get(mulank, MULANK_DATA[5])
         
-        st.success(f"✨ {name} जी! आपका **मूल्यांक {mulank}** है।")
+        st.success(f"✨ {name} जी, आपकी कुंडली तैयार है!")
         
-        # स्क्रीन पर डिटेल्स दिखाना
-        st.markdown(f"### 🌟 **मूल्यांक {mulank} - {data['lord']} का प्रभाव**")
-        col_a, col_b = st.columns(2)
-        with col_a:
-            st.write(f"📅 **जन्म तारीखें:** {data['dates']}")
-            st.write(f"🪐 **स्वामी ग्रह:** {data['lord']}")
-            st.write(f"♈ **राशि:** {data['rashi']}")
-            st.write(f"🎁 **शुभ दिन:** {data['days']}")
-            st.write(f"🎨 **शुभ रंग:** {data['color']}")
-            st.write(f"💎 **शुभ रत्न:** {data['gem']}")
-        
-        with col_b:
-            st.write(f"🔢 **शुभ अंक:** {data['number']}")
-            st.write(f"🪙 **शुभ धातु:** {data['metal']}")
-            st.write(f"🪷 **शुभ मंत्र:** `{data['mantra']}`")
-            st.write(f"💡 **विशेषताएं:** {data['strengths']}")
-            st.write(f"⚠️ **कमजोरी:** {data['weakness']}")
-            st.write(f"✅ **उपाय:** {data['remedy']}")
+        # Display Chart
+        chart_buf = draw_birth_chart()
+        st.image(chart_buf, caption="Lagna Kundali Chart", width=300)
 
-        # PDF जनरेट करके डाउनलोड बटन दिखाना
-        st.markdown("---")
-        pdf_bytes = generate_pdf(name, dob, tob_str, place, mulank, data)
-        
+        # Download PDF Button
+        pdf_bytes = build_stylish_pdf(name, dob, tob_str, place, mulank, data, chart_buf)
         st.download_button(
-            label="📄 डाउनलोड करें - Trikaal Kundli PDF",
+            label="📄 डाउनलोड करें - Premium Kundli PDF",
             data=pdf_bytes,
             file_name=f"{name}_Trikaal_Kundli.pdf",
             mime="application/pdf"
