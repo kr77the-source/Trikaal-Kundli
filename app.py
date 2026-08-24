@@ -8,7 +8,6 @@ st.set_page_config(page_title="Trikaal Kundli - त्रिकाल कुं�
 st.title("🕉️ Trikaal Kundli (त्रिकाल कुंडली)")
 st.caption("मूल्यांक विश्लेषण एवं संपूर्ण रिपोर्ट")
 
-# 1 से 9 तक के मूल्यांक का डेटाबेस
 MULANK_DATA = {
     1: {
         "lord": "सूर्य", "dates": "1, 10, 19, 28", "rashi": "सिंह",
@@ -44,13 +43,22 @@ def calculate_mulank(date_obj):
 
 with st.form("kundali_form"):
     name = st.text_input("पूरा नाम (Full Name)")
-    col1, col2 = st.columns(2)
-    with col1:
-        # DD/MM/YYYY फॉर्मेट यहाँ सेट किया गया है
-        dob = st.date_input("जन्म तिथि (Date of Birth)", format="DD/MM/YYYY")
-    with col2:
-        tob = st.time_input("जन्म समय (Time of Birth)")
+    
+    # 1. तारीख input (DD/MM/YYYY)
+    dob = st.date_input("जन्म तिथि (Date of Birth)", format="DD/MM/YYYY")
+    
+    # 2. समय input (AM/PM के साथ)
+    st.write("**जन्म समय (Time of Birth)**")
+    t_col1, t_col2, t_col3 = st.columns(3)
+    with t_col1:
+        hour = st.selectbox("Hour", [f"{i:02d}" for i in range(1, 13)])
+    with t_col2:
+        minute = st.selectbox("Minute", [f"{i:02d}" for i in range(0, 60)])
+    with t_col3:
+        ampm = st.selectbox("AM/PM", ["AM", "PM"])
         
+    tob_str = f"{hour}:{minute} {ampm}"
+    
     place = st.text_input("जन्म स्थान (Birth Place)")
     submit = st.form_submit_button("🔮 विश्लेषण देखें")
 
@@ -61,7 +69,7 @@ if submit:
         mulank = calculate_mulank(dob)
         data = MULANK_DATA.get(mulank, MULANK_DATA[5])
         
-        st.success(f"✨ {name} जी, आपका **मूल्यांक {mulank}** है! ({data['lord']} का प्रभाव)")
+        st.success(f"✨ {name} जी! आपका जन्म समय **{tob_str}** है और आपका **मूल्यांक {mulank}** है।")
         
         st.markdown(f"### 🌟 **मूल्यांक {mulank} - {data['lord']} का प्रभाव**")
         
