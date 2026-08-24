@@ -2,6 +2,7 @@ import streamlit as st
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import io
+import datetime
 
 st.set_page_config(page_title="Trikaal Kundli - त्रिकाल कुंडली", page_icon="🕉️")
 
@@ -44,10 +45,14 @@ def calculate_mulank(date_obj):
 with st.form("kundali_form"):
     name = st.text_input("पूरा नाम (Full Name)")
     
-    # 1. तारीख input (DD/MM/YYYY)
-    dob = st.date_input("जन्म तिथि (Date of Birth)", format="DD/MM/YYYY")
+    # 1900 से लेकर आज तक की डेट रेंज के साथ input
+    dob = st.date_input(
+        "जन्म तिथि (Date of Birth)", 
+        format="DD/MM/YYYY",
+        min_value=datetime.date(1900, 1, 1),
+        max_value=datetime.date.today()
+    )
     
-    # 2. समय input (AM/PM के साथ)
     st.write("**जन्म समय (Time of Birth)**")
     t_col1, t_col2, t_col3 = st.columns(3)
     with t_col1:
