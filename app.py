@@ -8,7 +8,7 @@ st.set_page_config(page_title="Trikaal Kundli - त्रिकाल कुं�
 st.title("🕉️ Trikaal Kundli (त्रिकाल कुंडली)")
 st.caption("मूल्यांक विश्लेषण एवं संपूर्ण रिपोर्ट")
 
-# 1 से 9 तक के मूल्यांक का कंप्लीट डेटाबेस
+# 1 से 9 तक के मूल्यांक का डेटाबेस
 MULANK_DATA = {
     1: {
         "lord": "सूर्य", "dates": "1, 10, 19, 28", "rashi": "सिंह",
@@ -34,22 +34,20 @@ MULANK_DATA = {
         "weakness": "चंचलता, जल्दी बोर होना, अधीरता",
         "remedy": "गाय को हरी घास खिलाएं, गणेश जी को दूर्वा चढ़ाएं।"
     }
-    # (इसी तरह 3, 4, 6, 7, 8, 9 का डेटा जोड़ सकते हैं)
 }
 
-# मूल्यांक निकालने का फंक्शन
 def calculate_mulank(date_obj):
     day = date_obj.day
     while day > 9:
         day = sum(int(digit) for digit in str(day))
     return day
 
-# इनपुट फॉर्म
 with st.form("kundali_form"):
     name = st.text_input("पूरा नाम (Full Name)")
     col1, col2 = st.columns(2)
     with col1:
-        dob = st.date_input("जन्म तिथि (Date of Birth)")
+        # DD/MM/YYYY फॉर्मेट यहाँ सेट किया गया है
+        dob = st.date_input("जन्म तिथि (Date of Birth)", format="DD/MM/YYYY")
     with col2:
         tob = st.time_input("जन्म समय (Time of Birth)")
         
@@ -57,16 +55,14 @@ with st.form("kundali_form"):
     submit = st.form_submit_button("🔮 विश्लेषण देखें")
 
 if submit:
-    if not name:
-        st.warning("कृपया अपना नाम दर्ज करें।")
+    if not name or not place:
+        st.warning("कृपया अपना नाम और जन्म स्थान दर्ज करें।")
     else:
-        # ऑटोमैटिक मूल्यांक कैलकुलेशन
         mulank = calculate_mulank(dob)
-        data = MULANK_DATA.get(mulank, MULANK_DATA[5]) # फॉलबैक 5 पर रखा है
+        data = MULANK_DATA.get(mulank, MULANK_DATA[5])
         
         st.success(f"✨ {name} जी, आपका **मूल्यांक {mulank}** है! ({data['lord']} का प्रभाव)")
         
-        # इमेज जैसा सुंदर कार्ड UI
         st.markdown(f"### 🌟 **मूल्यांक {mulank} - {data['lord']} का प्रभाव**")
         
         col_a, col_b = st.columns(2)
@@ -85,7 +81,3 @@ if submit:
             st.write(f"💡 **विशेषताएं:** {data['strengths']}")
             st.write(f"⚠️ **कमजोरी:** {data['weakness']}")
             st.write(f"✅ **उपाय:** {data['remedy']}")
-
-        # PDF डाउनलोड बटन
-        st.markdown("---")
-        st.info("यह जानकारी PDF रिपोर्ट में भी शामिल कर दी गई है।")
